@@ -51,10 +51,10 @@ pipeline {
             set TARGET_PORT=!CURRENT_PORT!
             echo Reusing existing app port !TARGET_PORT!
           ) else (
-            rem Default target is 8001; if occupied by another service, pick next free up to 8100.
-            for /f "delims=" %%p in ('powershell -NoProfile -Command "$port=$null; for($p=8001; $p -le 8100; $p++){ try { $l=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any,$p); $l.Start(); $l.Stop(); $port=$p; break } catch {} }; if(-not $port){ exit 1 }; $port"') do set TARGET_PORT=%%p
+            rem Default target is 8000; if occupied by another service, pick next free up to 8100.
+            for /f "delims=" %%p in ('powershell -NoProfile -Command "$port=$null; for($p=8000; $p -le 8100; $p++){ try { $l=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any,$p); $l.Start(); $l.Stop(); $port=$p; break } catch {} }; if(-not $port){ exit 1 }; $port"') do set TARGET_PORT=%%p
             if not defined TARGET_PORT (
-              echo Could not find free deploy port in range 8001-8100.
+              echo Could not find free deploy port in range 8000-8100.
               exit /b 1
             )
             echo Selected temporary deploy port !TARGET_PORT!
