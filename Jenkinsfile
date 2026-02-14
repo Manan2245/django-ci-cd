@@ -7,6 +7,7 @@ pipeline {
   }
 
   environment {
+    APP_DIR = "django-ci-cd"
     IMAGE_NAME = "django-todo-app"
   }
 
@@ -18,35 +19,37 @@ pipeline {
       }
     }
 
-    stage('Test') {
+    stage('Check Docker') {
       steps {
-        bat '''
-          python -m venv .venv
-          call .venv\\Scripts\\activate
-          python -m pip install --upgrade pip
-          pip install django==3.2
-          python manage.py test
-        '''
+        bat 'docker --version'
+        bat 'docker compose version'
       }
     }
 
     stage('Build Image') {
       steps {
-        bat "docker build -t %IMAGE_NAME%:%BUILD_NUMBER% ."
-        bat "docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest"
+        dir("${APP_DIR}") {
+          bat "docker build -t %IMAGE_NAME%:%BUILD_NUMBER% ."
+          bat "docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest"
+        }
+      }
+    }
+
+    stage('Test') {
+      steps {
+        bat "docker run --rm %IMAGE_NAME%:%BUILD_NUMBER% python manage.py test"
       }
     }
 
     stage('Deploy') {
       when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
+        branch 'main'
       }
       steps {
-        bat 'docker compose down || exit /b 0'
-        bat 'docker compose up -d --build'
+        dir("${APP_DIR}") {
+          bat 'docker compose down || exit /b 0'
+          bat 'docker compose up -d --build'
+        }
       }
     }
   }
@@ -56,7 +59,7 @@ pipeline {
       cleanWs()
     }
     success {
-      echo "Pipeline completed. Build: ${BUILD_NUMBER}"
+      echo "Build Successful: ${BUILD_NUMBER}"
     }
     failure {
       echo "Pipeline failed."
