@@ -7,6 +7,9 @@ pipeline {
 
   environment {
     IMAGE_NAME = 'todo-app'
+    DOCKERHUB_IMAGE = 'pmana/todo-app'
+    DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
+    PUSH_TO_DOCKERHUB = 'false'
     APP_CONTAINER = 'todo-app-container'
     CANDIDATE_CONTAINER = 'todo-app-candidate'
   }
@@ -22,12 +25,31 @@ pipeline {
       steps {
         bat 'docker build -t %IMAGE_NAME%:%BUILD_NUMBER% .'
         bat 'docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest'
+        bat 'docker tag %IMAGE_NAME%:%BUILD_NUMBER% %DOCKERHUB_IMAGE%:%BUILD_NUMBER%'
+        bat 'docker tag %IMAGE_NAME%:%BUILD_NUMBER% %DOCKERHUB_IMAGE%:latest'
       }
     }
 
     stage('Test') {
       steps {
         bat 'docker run --rm %IMAGE_NAME%:%BUILD_NUMBER% python manage.py test'
+      }
+    }
+
+    stage('Push To Docker Hub') {
+      when {
+        environment name: 'PUSH_TO_DOCKERHUB', value: 'true'
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: env.DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')]) {
+          bat '''
+            @echo off
+            echo %DOCKERHUB_PASSWORD% | docker login -u %DOCKERHUB_USERNAME% --password-stdin
+            docker push %DOCKERHUB_IMAGE%:%BUILD_NUMBER%
+            docker push %DOCKERHUB_IMAGE%:latest
+            docker logout
+          '''
+        }
       }
     }
 
