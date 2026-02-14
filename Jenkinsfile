@@ -7,7 +7,7 @@ pipeline {
 
   environment {
     IMAGE_NAME = 'todo-app'
-    DOCKERHUB_IMAGE = 'pmana/todo-app'
+    DOCKERHUB_IMAGE = 'manan2245/to-do-app'
     DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
     PUSH_TO_DOCKERHUB = 'false'
     APP_CONTAINER = 'todo-app-container'
