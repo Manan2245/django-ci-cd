@@ -2,7 +2,7 @@ FROM python:3.11-slim
 
 WORKDIR /data
 
-RUN pip install --no-cache-dir django==3.2 PyMySQL==1.1.1 psycopg2-binary==2.9.10
+RUN pip install --no-cache-dir django==3.2
 
 COPY . .
 

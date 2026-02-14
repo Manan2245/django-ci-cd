@@ -36,20 +36,3 @@ $ python manage.py runserver
 Once the server is hosted, head over to http://127.0.0.1:8000/todos for the App.
 
 Cheers and Happy Coding :)
-
-## Local Docker DB (dev only)
-
-Use this when you want one local database in Docker and keep deployment separate.
-
-1. Copy `.env.example` to `.env` and adjust values if needed.
-2. Run:
-
-```bash
-docker compose -f docker-compose.local.yml up --build
-```
-
-This starts:
-- `web` on `http://localhost:8000`
-- `mysql` with persistent volume `todo_mysql_data`
-
-CI/CD and deployment are not tied to this local DB setup. Jenkins runs containers with `DB_ENGINE=sqlite`.
