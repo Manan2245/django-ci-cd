@@ -38,18 +38,45 @@ pipeline {
           setlocal EnableDelayedExpansion
 
           set NEW_IMAGE=%IMAGE_NAME%:%BUILD_NUMBER%
+          set STABLE_IMAGE=%IMAGE_NAME%:stable
           set OLD_IMAGE=
+          set CURRENT_PORT=
+          set TARGET_PORT=
+          set CANDIDATE_PORT=
+
+          rem If current app container exists, preserve its current host port.
+          for /f "delims=" %%p in ('powershell -NoProfile -Command "$raw = docker port %APP_CONTAINER% 8000/tcp 2>$null; if($LASTEXITCODE -eq 0 -and $raw){ $line = ($raw | Select-Object -First 1); $m = [regex]::Match($line, ':(\\d+)$'); if($m.Success){$m.Groups[1].Value} }"') do set CURRENT_PORT=%%p
+
+          if defined CURRENT_PORT (
+            set TARGET_PORT=!CURRENT_PORT!
+            echo Reusing existing app port !TARGET_PORT!
+          ) else (
+            rem Default target is 8001; if occupied by another service, pick next free up to 8100.
+            for /f "delims=" %%p in ('powershell -NoProfile -Command "$port=$null; for($p=8001; $p -le 8100; $p++){ try { $l=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any,$p); $l.Start(); $l.Stop(); $port=$p; break } catch {} }; if(-not $port){ exit 1 }; $port"') do set TARGET_PORT=%%p
+            if not defined TARGET_PORT (
+              echo Could not find free deploy port in range 8001-8100.
+              exit /b 1
+            )
+            echo Selected temporary deploy port !TARGET_PORT!
+          )
+
+          rem Candidate runs on a separate free port.
+          for /f "delims=" %%p in ('powershell -NoProfile -Command "$port=$null; for($p=9001; $p -le 9100; $p++){ try { $l=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any,$p); $l.Start(); $l.Stop(); $port=$p; break } catch {} }; if(-not $port){ exit 1 }; $port"') do set CANDIDATE_PORT=%%p
+          if not defined CANDIDATE_PORT (
+            echo Could not find free candidate port in range 9001-9100.
+            exit /b 1
+          )
 
           echo Preparing candidate container...
           docker rm -f %CANDIDATE_CONTAINER% 2>nul
-          docker run -d --name %CANDIDATE_CONTAINER% -p 8002:8000 %NEW_IMAGE%
+          docker run -d --name %CANDIDATE_CONTAINER% -p !CANDIDATE_PORT!:8000 %NEW_IMAGE%
           if errorlevel 1 (
             echo Failed to start candidate container.
             exit /b 1
           )
 
-          echo Waiting for candidate response on http://localhost:8002 ...
-          powershell -NoProfile -Command "$ok=$false; for($i=0;$i -lt 20;$i++){try{ $r=Invoke-WebRequest -UseBasicParsing http://localhost:8002 -TimeoutSec 2; if($r.StatusCode -ge 200 -and $r.StatusCode -lt 500){$ok=$true; break}} catch {}; Start-Sleep -Seconds 2}; if(-not $ok){exit 1}"
+          echo Waiting for candidate response on http://localhost:!CANDIDATE_PORT! ...
+          powershell -NoProfile -Command "$ok=$false; $u='http://localhost:' + !CANDIDATE_PORT!; for($i=0;$i -lt 20;$i++){try{ $r=Invoke-WebRequest -UseBasicParsing $u -TimeoutSec 2; if($r.StatusCode -ge 200 -and $r.StatusCode -lt 500){$ok=$true; break}} catch {}; Start-Sleep -Seconds 2}; if(-not $ok){exit 1}"
           if errorlevel 1 (
             echo Candidate health check failed.
             docker logs %CANDIDATE_CONTAINER%
@@ -61,18 +88,26 @@ pipeline {
 
           echo Swapping to new container...
           docker rm -f %APP_CONTAINER% 2>nul
-          docker run -d --name %APP_CONTAINER% -p 8000:8000 %NEW_IMAGE%
+          docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 %NEW_IMAGE%
           if errorlevel 1 (
             echo Failed to start new primary container. Attempting rollback...
-            if defined OLD_IMAGE (
-              docker run -d --name %APP_CONTAINER% -p 8000:8000 !OLD_IMAGE!
+            docker image inspect !STABLE_IMAGE! >nul 2>nul
+            if not errorlevel 1 (
+              echo Rolling back to stable image !STABLE_IMAGE! ...
+              docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 !STABLE_IMAGE!
+            ) else (
+              if defined OLD_IMAGE (
+                echo Stable image not found. Rolling back to previous running image !OLD_IMAGE! ...
+                docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 !OLD_IMAGE!
+              )
             )
             docker rm -f %CANDIDATE_CONTAINER% 2>nul
             exit /b 1
           )
 
+          docker tag %NEW_IMAGE% !STABLE_IMAGE!
           docker rm -f %CANDIDATE_CONTAINER% 2>nul
-          echo Deploy completed.
+          echo Deploy completed on host port !TARGET_PORT!.
         '''
       }
     }
@@ -80,6 +115,7 @@ pipeline {
     stage('Verify Running') {
       steps {
         bat 'docker ps'
+        bat 'docker port %APP_CONTAINER% 8000'
       }
     }
   }
