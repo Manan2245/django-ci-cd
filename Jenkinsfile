@@ -9,7 +9,7 @@ pipeline {
     stage('Run Shared Pipeline') {
       steps {
         script {
-          todoPipeline(appDir: 'django-ci-cd', imageName: 'django-todo-app')
+          todoPipeline(appDir: '.', imageName: 'django-todo-app')
         }
       }
     }
