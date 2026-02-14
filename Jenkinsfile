@@ -21,11 +21,10 @@ pipeline {
     stage('Test') {
       steps {
         dir("${APP_DIR}") {
-          sh '''
-            set -e
+          bat '''
             python -m venv .venv
-            . .venv/bin/activate
-            pip install --upgrade pip
+            call .venv\\Scripts\\activate
+            python -m pip install --upgrade pip
             pip install django==3.2
             python manage.py test
           '''
@@ -36,8 +35,8 @@ pipeline {
     stage('Build Image') {
       steps {
         dir("${APP_DIR}") {
-          sh 'docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .'
-          sh 'docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest'
+          bat 'docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} .'
+          bat 'docker tag ${IMAGE_NAME}:${BUILD_NUMBER} ${IMAGE_NAME}:latest'
         }
       }
     }
@@ -51,8 +50,8 @@ pipeline {
       }
       steps {
         dir("${APP_DIR}") {
-          sh 'docker compose down || true'
-          sh 'docker compose up -d --build'
+          bat 'docker compose down || exit /b 0'
+          bat 'docker compose up -d --build'
         }
       }
     }
