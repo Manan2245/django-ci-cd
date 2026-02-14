@@ -7,7 +7,7 @@ pipeline {
   }
 
   environment {
-    APP_DIR = "django-ci-cd"
+    APP_DIR = "."
     IMAGE_NAME = "django-todo-app"
   }
 
@@ -16,6 +16,21 @@ pipeline {
     stage('Checkout') {
       steps {
         checkout scm
+      }
+    }
+
+    stage('Resolve Paths') {
+      steps {
+        script {
+          if (fileExists('django-ci-cd/Dockerfile')) {
+            env.APP_DIR = 'django-ci-cd'
+          } else if (fileExists('Dockerfile')) {
+            env.APP_DIR = '.'
+          } else {
+            error('Dockerfile not found in repo root or django-ci-cd/')
+          }
+          echo "Using APP_DIR=${env.APP_DIR}"
+        }
       }
     }
 
@@ -29,7 +44,7 @@ pipeline {
     stage('Build Image') {
       steps {
         dir("${APP_DIR}") {
-          bat "docker build -t %IMAGE_NAME%:%BUILD_NUMBER% ."
+          bat "docker build -f Dockerfile -t %IMAGE_NAME%:%BUILD_NUMBER% ."
           bat "docker tag %IMAGE_NAME%:%BUILD_NUMBER% %IMAGE_NAME%:latest"
         }
       }
@@ -37,7 +52,9 @@ pipeline {
 
     stage('Test') {
       steps {
-        bat "docker run --rm %IMAGE_NAME%:%BUILD_NUMBER% python manage.py test"
+        dir("${APP_DIR}") {
+          bat "docker run --rm %IMAGE_NAME%:%BUILD_NUMBER% python manage.py test"
+        }
       }
     }
 
