@@ -9,7 +9,7 @@ pipeline {
     IMAGE_NAME = 'todo-app'
     DOCKERHUB_IMAGE = 'manan2245/to-do-app'
     DOCKER_CREDENTIALS_ID = 'dockerhub-credentials'
-    PUSH_TO_DOCKERHUB = 'false'
+    PUSH_TO_DOCKERHUB = 'true'
     APP_CONTAINER = 'todo-app-container'
     CANDIDATE_CONTAINER = 'todo-app-candidate'
   }
