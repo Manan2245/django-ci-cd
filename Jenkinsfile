@@ -38,7 +38,6 @@ pipeline {
           setlocal EnableDelayedExpansion
 
           set NEW_IMAGE=%IMAGE_NAME%:%BUILD_NUMBER%
-          set STABLE_IMAGE=%IMAGE_NAME%:stable
           set OLD_IMAGE=
           set CURRENT_PORT=
           set TARGET_PORT=
@@ -51,10 +50,10 @@ pipeline {
             set TARGET_PORT=!CURRENT_PORT!
             echo Reusing existing app port !TARGET_PORT!
           ) else (
-            rem Default target is 8000; if occupied by another service, pick next free up to 8100.
-            for /f "delims=" %%p in ('powershell -NoProfile -Command "$port=$null; for($p=8000; $p -le 8100; $p++){ try { $l=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any,$p); $l.Start(); $l.Stop(); $port=$p; break } catch {} }; if(-not $port){ exit 1 }; $port"') do set TARGET_PORT=%%p
+            rem Default target is 8001; if occupied by another service, pick next free up to 8100.
+            for /f "delims=" %%p in ('powershell -NoProfile -Command "$port=$null; for($p=8001; $p -le 8100; $p++){ try { $l=[System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Any,$p); $l.Start(); $l.Stop(); $port=$p; break } catch {} }; if(-not $port){ exit 1 }; $port"') do set TARGET_PORT=%%p
             if not defined TARGET_PORT (
-              echo Could not find free deploy port in range 8000-8100.
+              echo Could not find free deploy port in range 8001-8100.
               exit /b 1
             )
             echo Selected temporary deploy port !TARGET_PORT!
@@ -91,21 +90,13 @@ pipeline {
           docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 %NEW_IMAGE%
           if errorlevel 1 (
             echo Failed to start new primary container. Attempting rollback...
-            docker image inspect !STABLE_IMAGE! >nul 2>nul
-            if not errorlevel 1 (
-              echo Rolling back to stable image !STABLE_IMAGE! ...
-              docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 !STABLE_IMAGE!
-            ) else (
-              if defined OLD_IMAGE (
-                echo Stable image not found. Rolling back to previous running image !OLD_IMAGE! ...
-                docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 !OLD_IMAGE!
-              )
+            if defined OLD_IMAGE (
+              docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 !OLD_IMAGE!
             )
             docker rm -f %CANDIDATE_CONTAINER% 2>nul
             exit /b 1
           )
 
-          docker tag %NEW_IMAGE% !STABLE_IMAGE!
           docker rm -f %CANDIDATE_CONTAINER% 2>nul
           echo Deploy completed on host port !TARGET_PORT!.
         '''
