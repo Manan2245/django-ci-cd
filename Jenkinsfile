@@ -1,4 +1,4 @@
-@Library('todo-lib@main') _
+@Library('jenkins-scripts@main') _
 
 pipeline {
   agent any
