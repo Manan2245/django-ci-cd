@@ -1,8 +1,12 @@
-version : "3.3"
-services :
-  web :
-     build : .
-     ports :
-         - "8000:8000"
-     volumes:
-      - ./volume/store_data/db.sqlite3:/data/db.sqlite3
+version: "3.8"
+
+services:
+  web:
+    build: .
+    command: sh -c "python manage.py migrate && python manage.py runserver 0.0.0.0:8000"
+    ports:
+      - "8000:8000"
+    environment:
+      DB_ENGINE: sqlite
+    volumes:
+      - .:/data

@@ -27,7 +27,7 @@ pipeline {
 
     stage('Test') {
       steps {
-        bat 'docker run --rm %IMAGE_NAME%:%BUILD_NUMBER% python manage.py test'
+        bat 'docker run --rm --env DB_ENGINE=sqlite %IMAGE_NAME%:%BUILD_NUMBER% python manage.py test'
       }
     }
 
@@ -68,7 +68,7 @@ pipeline {
 
           echo Preparing candidate container...
           docker rm -f %CANDIDATE_CONTAINER% 2>nul
-          docker run -d --name %CANDIDATE_CONTAINER% -p !CANDIDATE_PORT!:8000 %NEW_IMAGE%
+          docker run -d --name %CANDIDATE_CONTAINER% -p !CANDIDATE_PORT!:8000 --env DB_ENGINE=sqlite %NEW_IMAGE%
           if errorlevel 1 (
             echo Failed to start candidate container.
             exit /b 1
@@ -87,11 +87,11 @@ pipeline {
 
           echo Swapping to new container...
           docker rm -f %APP_CONTAINER% 2>nul
-          docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 %NEW_IMAGE%
+          docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 --env DB_ENGINE=sqlite %NEW_IMAGE%
           if errorlevel 1 (
             echo Failed to start new primary container. Attempting rollback...
             if defined OLD_IMAGE (
-              docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 !OLD_IMAGE!
+              docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 --env DB_ENGINE=sqlite !OLD_IMAGE!
             )
             docker rm -f %CANDIDATE_CONTAINER% 2>nul
             exit /b 1
