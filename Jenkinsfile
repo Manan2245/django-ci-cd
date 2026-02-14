@@ -9,7 +9,6 @@ pipeline {
     IMAGE_NAME = 'todo-app'
     APP_CONTAINER = 'todo-app-container'
     CANDIDATE_CONTAINER = 'todo-app-candidate'
-    DB_VOLUME = 'todo_app_db'
   }
 
   stages {
@@ -88,12 +87,11 @@ pipeline {
 
           echo Swapping to new container...
           docker rm -f %APP_CONTAINER% 2>nul
-          docker volume create %DB_VOLUME% >nul
-          docker run -d --name %APP_CONTAINER% -e SQLITE_PATH=/data/persist/db.sqlite3 -v %DB_VOLUME%:/data/persist -p !TARGET_PORT!:8000 %NEW_IMAGE%
+          docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 %NEW_IMAGE%
           if errorlevel 1 (
             echo Failed to start new primary container. Attempting rollback...
             if defined OLD_IMAGE (
-              docker run -d --name %APP_CONTAINER% -e SQLITE_PATH=/data/persist/db.sqlite3 -v %DB_VOLUME%:/data/persist -p !TARGET_PORT!:8000 !OLD_IMAGE!
+              docker run -d --name %APP_CONTAINER% -p !TARGET_PORT!:8000 !OLD_IMAGE!
             )
             docker rm -f %CANDIDATE_CONTAINER% 2>nul
             exit /b 1
@@ -113,4 +111,3 @@ pipeline {
     }
   }
 }
-
