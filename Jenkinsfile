@@ -30,12 +30,6 @@ pipeline {
     }
 
     stage('Deploy Container') {
-      when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
-      }
       steps {
         bat 'docker rm -f todo-app-container 2>nul || exit /b 0'
         bat 'docker run -d --name todo-app-container -p 8001:8000 %IMAGE_NAME%:latest'
@@ -43,12 +37,6 @@ pipeline {
     }
 
     stage('Verify Running') {
-      when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
-      }
       steps {
         bat 'docker ps'
       }
