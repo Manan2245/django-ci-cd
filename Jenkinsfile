@@ -45,8 +45,11 @@ pipeline {
           bat '''
             @echo off
             echo %DOCKERHUB_PASSWORD% | docker login -u %DOCKERHUB_USERNAME% --password-stdin
+            if errorlevel 1 exit /b 1
             docker push %DOCKERHUB_IMAGE%:%BUILD_NUMBER%
+            if errorlevel 1 exit /b 1
             docker push %DOCKERHUB_IMAGE%:latest
+            if errorlevel 1 exit /b 1
             docker logout
           '''
         }
